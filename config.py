@@ -14,8 +14,9 @@
 # of this source code without permission is prohibited.
 # ==========================================================
 from os import getenv
-from typing import List
+from typing import List, Dict, Optional
 from dotenv import load_dotenv
+import random
 
 load_dotenv()
 
@@ -76,6 +77,149 @@ class Config:
         # Moderation
         self.EXCLUDED_USERNAMES: List[str] = getenv("EXCLUDED_USERNAMES", "").split()
 
+        # ==================== PROXY CONFIGURATION ====================
+        # Enable/Disable Proxy
+        self.ENABLE_PROXY: bool = self._str_to_bool(getenv("ENABLE_PROXY", "True"))
+        
+        # Proxy List (All working proxies)
+        self.PROXY_LIST: List[Dict[str, str]] = self._initialize_proxies()
+        
+        # Proxy rotation mode: "round_robin", "random", "sequential"
+        self.PROXY_ROTATION: str = getenv("PROXY_ROTATION", "random")
+        
+        # Current proxy index for round_robin
+        self._current_proxy_index: int = 0
+        
+        # Proxy timeout in seconds
+        self.PROXY_TIMEOUT: int = int(getenv("PROXY_TIMEOUT", "30"))
+        
+        # Retry attempts with different proxies
+        self.PROXY_RETRY_ATTEMPTS: int = int(getenv("PROXY_RETRY_ATTEMPTS", "3"))
+        
+        # Health check enabled
+        self.PROXY_HEALTH_CHECK: bool = self._str_to_bool(getenv("PROXY_HEALTH_CHECK", "True"))
+        
+        # Working proxies cache (after health check)
+        self._working_proxies: List[Dict[str, str]] = []
+        self._failed_proxies: List[Dict[str, str]] = []
+
+    def _initialize_proxies(self) -> List[Dict[str, str]]:
+        """Initialize all proxies from environment or default list"""
+        
+        # First check if proxies are provided in environment variable
+        proxy_env = getenv("PROXY_LIST", "")
+        
+        if proxy_env:
+            proxies = []
+            for proxy in proxy_env.split(","):
+                proxy = proxy.strip()
+                if ":" in proxy:
+                    host, port = proxy.split(":")
+                    proxies.append(self._create_proxy_dict(host, port))
+            if proxies:
+                return proxies
+        
+        # Default proxy list (your provided proxies)
+        default_proxy_strings = [
+            "47.252.47.39:1080",    # SOCKS5/HTTP
+            "107.174.210.60:7890",  # HTTP
+            "184.170.248.5:4145",   # SOCKS5/HTTP
+            "159.198.35.187:1080",  # SOCKS5
+            "72.37.217.3:4145",     # HTTP
+            "104.200.135.46:4145",  # HTTP
+            "198.8.84.3:4145",      # HTTP
+            "98.191.0.47:4145",     # HTTP
+            "70.166.167.38:57728",  # SOCKS5
+            "142.54.235.9:4145"     # HTTP
+        ]
+        
+        proxies = []
+        for proxy_str in default_proxy_strings:
+            host, port = proxy_str.split(":")
+            proxies.append(self._create_proxy_dict(host, port))
+        
+        return proxies
+    
+    def _create_proxy_dict(self, host: str, port: str) -> Dict[str, str]:
+        """Create proxy dictionary with multiple protocol support"""
+        return {
+            "http": f"http://{host}:{port}",
+            "https": f"http://{host}:{port}",
+            "socks5": f"socks5://{host}:{port}",
+            "socks4": f"socks4://{host}:{port}",
+            "host": host,
+            "port": port,
+            "original": f"{host}:{port}"
+        }
+    
+    def get_proxy(self) -> Optional[Dict[str, str]]:
+        """Get a proxy based on rotation mode"""
+        if not self.ENABLE_PROXY or not self.PROXY_LIST:
+            return None
+        
+        # Use working proxies if available and health check is enabled
+        if self.PROXY_HEALTH_CHECK and self._working_proxies:
+            proxy_list = self._working_proxies
+        else:
+            proxy_list = self.PROXY_LIST
+        
+        if not proxy_list:
+            return None
+        
+        if self.PROXY_ROTATION == "random":
+            return random.choice(proxy_list)
+        elif self.PROXY_ROTATION == "round_robin":
+            proxy = proxy_list[self._current_proxy_index]
+            self._current_proxy_index = (self._current_proxy_index + 1) % len(proxy_list)
+            return proxy
+        else:  # sequential
+            proxy = proxy_list[self._current_proxy_index]
+            self._current_proxy_index = min(self._current_proxy_index + 1, len(proxy_list) - 1)
+            if self._current_proxy_index >= len(proxy_list):
+                self._current_proxy_index = 0
+            return proxy
+    
+    def get_all_proxies(self) -> List[Dict[str, str]]:
+        """Get all proxies"""
+        return self.PROXY_LIST.copy()
+    
+    def get_proxy_count(self) -> int:
+        """Get total number of proxies"""
+        return len(self.PROXY_LIST)
+    
+    def get_working_proxies(self) -> List[Dict[str, str]]:
+        """Get list of working proxies"""
+        return self._working_proxies.copy() if self._working_proxies else []
+    
+    def mark_proxy_failed(self, proxy: Dict[str, str]) -> None:
+        """Mark a proxy as failed"""
+        if proxy not in self._failed_proxies and proxy in self.PROXY_LIST:
+            self._failed_proxies.append(proxy)
+            if proxy in self._working_proxies:
+                self._working_proxies.remove(proxy)
+    
+    def mark_proxy_working(self, proxy: Dict[str, str]) -> None:
+        """Mark a proxy as working"""
+        if proxy not in self._working_proxies and proxy in self.PROXY_LIST:
+            self._working_proxies.append(proxy)
+            if proxy in self._failed_proxies:
+                self._failed_proxies.remove(proxy)
+    
+    def reset_proxy_status(self) -> None:
+        """Reset all proxy statuses"""
+        self._working_proxies = []
+        self._failed_proxies = []
+        self._current_proxy_index = 0
+    
+    def get_proxy_for_request(self, protocol: str = "http") -> Optional[str]:
+        """Get proxy URL for specific protocol (http/https/socks5)"""
+        proxy = self.get_proxy()
+        if proxy and protocol in proxy:
+            return proxy[protocol]
+        return None
+    
+    # ==================== EXISTING METHODS ====================
+    
     def _parse_video_height(self) -> int:
         default_height = 1080
         raw_value = getenv("VIDEO_MAX_HEIGHT", str(default_height))
@@ -125,6 +269,13 @@ class Config:
         
         if self.ENABLE_API and not self.ARTISTBOTS_KEY:
             print("Warning: ENABLE_API is True but ARTISTBOTS_KEY is not set")
+        
+        # Print proxy status
+        if self.ENABLE_PROXY:
+            print(f"✅ Proxy enabled: {self.get_proxy_count()} proxies loaded")
+            print(f"🔄 Proxy rotation mode: {self.PROXY_ROTATION}")
+        else:
+            print("⚠️ Proxy is disabled")
 
 
 config = Config()
