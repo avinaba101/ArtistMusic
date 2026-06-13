@@ -56,7 +56,7 @@ ICONS_Y = BAR_Y + 65
 
 MAX_TITLE_WIDTH = 850
 
-_f = "QXJ0aXN0Ym90cw=="
+_f = "Qm9hIE11c2lj"  # Changed: Base64 encoded "Boa Music"
 
 
 def _decode_f():
