@@ -61,8 +61,8 @@ _f = "QXJ0aXN0Ym90cw=="
 
 def _decode_f():
     decoded = base64.b64decode(_f).decode("utf-8")
-    # Changed watermark from ArtistBots to DarkXmusic
-    return f"✦ DarkXmusic ✦"
+    # Changed watermark from DarkXmusic to FushiguroXmusic
+    return f"✦ FushiguroXmusic ✦"
 
 
 def trim_to_width(text: str, font, max_w: int) -> str:
@@ -212,10 +212,10 @@ class Thumbnail:
 
             draw = ImageDraw.Draw(bg)
 
-            # Updated watermark text
+            # Updated watermark using the decoded function
             draw.text(
                 (45, 22),
-                "✦ DarkXmusic ✦",
+                _decode_f(),  # Now returns "✦ FushiguroXmusic ✦"
                 fill=(255, 255, 255, 230),
                 font=self.signature_font
             )
