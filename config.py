@@ -44,7 +44,7 @@ class Config:
         self.SESSION3: str = getenv("STRING_SESSION3", "")
 
         # Support Links
-        self.SUPPORT_CHANNEL: str = getenv("SUPPORT_CHANNEL", "https://t.me/darkroom149")
+        self.SUPPORT_CHANNEL: str = getenv("SUPPORT_CHANNEL", "https://t.me/+_FZh26lYZ0MzOGJl")
         self.SUPPORT_CHAT: str = getenv("SUPPORT_CHAT", "https://t.me/DDOS_SELLER_07")
 
         # Excluded Chats
