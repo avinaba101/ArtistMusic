@@ -69,10 +69,10 @@ class Config:
         self.COOKIES_URL: List[str] = self._parse_cookies()
 
         # Images
-        self.DEFAULT_THUMB: str = getenv("DEFAULT_THUMB", "https://iili.io/CBya8b9.jpg")
-        self.PING_IMG: str = getenv("PING_IMG", "https://iili.io/CBya8b9.jpg")
-        self.START_IMG: str = getenv("START_IMG", "https://iili.io/CBya8b9.jpg")
-        self.RADIO_IMG: str = getenv("RADIO_IMG", "https://iili.io/CBya8b9.jpg")
+        self.DEFAULT_THUMB: str = getenv("DEFAULT_THUMB", "https://iili.io/CAWTGyJ.jpg")
+        self.PING_IMG: str = getenv("PING_IMG", "https://iili.io/CAWTGyJ.jpg")
+        self.START_IMG: str = getenv("START_IMG", "https://iili.io/CAWTGyJ.jpg")
+        self.RADIO_IMG: str = getenv("RADIO_IMG", "https://iili.io/CAWTGyJ.jpg")
 
         # Moderation
         self.EXCLUDED_USERNAMES: List[str] = getenv("EXCLUDED_USERNAMES", "").split()
