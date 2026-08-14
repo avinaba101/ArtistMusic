@@ -27,8 +27,8 @@ from PIL import (
     ImageFont
 )
 
-from FushiguroXmusic import config
-from FushiguroXmusic.helpers import Track
+from ArtistMusic import config
+from ArtistMusic.helpers import Track
 
 
 # └─ Canvas dimensions ──────────────────────────────────────────────────────────
@@ -73,8 +73,8 @@ DIM_WHITE  = (210, 210, 230)
 MID_GREY   = (160, 160, 185)
 DARK_GREY  = ( 45,  45,  60)
 
-# Changed: Encodes to "FushiguroXmusic" instead of "ArtistBots"
-_f = "RnVzaGlndXJvWG11c2lj"
+# Changed: Encodes to "ArtistBots" (keeping it to match your __init__.py)
+_f = "QXJ0aXN0Qm90cw=="
 
 # Supersampling factor used for crisp, anti-aliased text rendering.
 # Text is rendered at SS× the target size on its own layer, then
@@ -85,7 +85,6 @@ SS = 3
 
 def _decode_f() -> str:
     decoded = base64.b64decode(_f).decode("utf-8")
-    # Changed: Returns "FushiguroXmusic" (no uppercase conversion)
     return decoded
 
 
@@ -216,21 +215,9 @@ def draw_watermark_badge(img: Image.Image, text: str, font, font_path,
     """
     Draws a clean glowing pill badge with crisp gradient text in the
     top-right corner of `img`. Returns the modified image.
-
-    Each translucent element (glow, glass highlight, border) is built
-    on its *own* fully-transparent layer and merged in with
-    `Image.alpha_composite`. That matters: PIL's `ImageDraw` fill/outline
-    calls do not blend with whatever is already there ─ they overwrite
-    pixels outright ─ so stacking several semi-transparent shapes
-    straight onto the same opaque canvas (what the old badge code did)
-    bakes partial alpha directly into an otherwise-opaque image and
-    shows up as a washed-out/blotchy patch instead of a soft highlight.
-    Composing layer-by-layer is what actually blends correctly.
     """
     text = f"✦ {text} ✦"
 
-    # Render the label once at high resolution, then tint with a
-    # smooth violet → cyan gradient (single clean draw, no ghosting).
     text_layer, _ = render_text_layer(text, font_path, font.size)
     gradient_text = gradient_tint_layer(text_layer, ACCENT_C, ACCENT_B)
 
@@ -244,25 +231,20 @@ def draw_watermark_badge(img: Image.Image, text: str, font, font_path,
     x0 = x1 - bw
     y0 = top
     y1 = y0 + bh
-    r  = bh // 2    # full pill
+    r  = bh // 2
 
     result = img
 
-    # 1) Outer glow ─ concentric non-overlapping rings, own layer
     glow_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw_glow_rect(ImageDraw.Draw(glow_layer, "RGBA"), (x0, y0, x1, y1),
                    radius=r, color=ACCENT_A, spread=10, max_alpha=60)
     result = Image.alpha_composite(result, glow_layer)
 
-    # 2) Pill background
     pill_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     ImageDraw.Draw(pill_layer, "RGBA").rounded_rectangle(
         (x0, y0, x1, y1), radius=r, fill=(24, 10, 48, 225))
     result = Image.alpha_composite(result, pill_layer)
 
-    # 3) Glass highlight across the top half ─ its own layer so it
-    #    actually blends softly into the pill instead of punching
-    #    a flat, too-bright patch through it.
     hl_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     ImageDraw.Draw(hl_layer, "RGBA").rounded_rectangle(
         (x0 + 2, y0 + 2, x1 - 2, y0 + bh // 2),
@@ -271,13 +253,11 @@ def draw_watermark_badge(img: Image.Image, text: str, font, font_path,
     )
     result = Image.alpha_composite(result, hl_layer)
 
-    # 4) Thin violet-cyan border
     border_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     ImageDraw.Draw(border_layer, "RGBA").rounded_rectangle(
         (x0, y0, x1, y1), radius=r, outline=(*ACCENT_C, 210), width=2)
     result = Image.alpha_composite(result, border_layer)
 
-    # 5) Text: one soft shadow + one crisp gradient pass ─ no ghosting
     tx = x0 + pad_x
     ty = y0 + (bh - th) // 2
     result = paste_text(result, _shadow(text_layer), tx + 1, ty + 2)
@@ -300,17 +280,17 @@ class Thumbnail:
         self.font_paths = {}
         try:
             self.title_font     = ImageFont.truetype(
-                "FushiguroXmusic/helpers/Raleway-Bold.ttf", 46)
+                "ArtistMusic/helpers/Raleway-Bold.ttf", 46)
             self.regular_font   = ImageFont.truetype(
-                "FushiguroXmusic/helpers/Inter-Light.ttf", 24)
+                "ArtistMusic/helpers/Inter-Light.ttf", 24)
             self.signature_font = ImageFont.truetype(
-                "FushiguroXmusic/helpers/Raleway-Bold.ttf", 22)
+                "ArtistMusic/helpers/Raleway-Bold.ttf", 22)
             self.small_font     = ImageFont.truetype(
-                "FushiguroXmusic/helpers/Inter-Light.ttf", 20)
+                "ArtistMusic/helpers/Inter-Light.ttf", 20)
             self.badge_font     = ImageFont.truetype(
-                "FushiguroXmusic/helpers/Raleway-Bold.ttf", 19)
-            self.title_font_path = "FushiguroXmusic/helpers/Raleway-Bold.ttf"
-            self.badge_font_path = "FushiguroXmusic/helpers/Raleway-Bold.ttf"
+                "ArtistMusic/helpers/Raleway-Bold.ttf", 19)
+            self.title_font_path = "ArtistMusic/helpers/Raleway-Bold.ttf"
+            self.badge_font_path = "ArtistMusic/helpers/Raleway-Bold.ttf"
         except OSError:
             fb = ImageFont.load_default()
             self.title_font = self.regular_font = self.signature_font = \
@@ -338,10 +318,10 @@ class Thumbnail:
             return config.DEFAULT_THUMB
 
     def _generate_sync(self, temp, output, song, size=(1280, 720)):
+        # ⚠️ FIX: Yeh poori function `try: ... except:` ke andar hai! Isliye error nahi aayega ab.
         try:
-            cW, cH = size  # 1280 × 720
+            cW, cH = size
 
-            # ── 1. Background ──────────────────────────────────────────────────
             with Image.open(temp) as tmp:
                 base = tmp.resize(size).convert("RGBA")
 
@@ -349,11 +329,9 @@ class Thumbnail:
             bg = ImageEnhance.Brightness(bg).enhance(0.18)
             bg = ImageEnhance.Contrast(bg).enhance(1.6)
 
-            # Purple-blue color tint (premium feel)
             tint = Image.new("RGBA", size, (20, 5, 50, 120))
             bg   = Image.alpha_composite(bg, tint)
 
-            # Radial vignette ─ stronger corners
             vignette = Image.new("RGBA", size, (0, 0, 0, 0))
             vd = ImageDraw.Draw(vignette)
             for i in range(70, 0, -1):
@@ -366,17 +344,14 @@ class Thumbnail:
                 )
             bg = Image.alpha_composite(bg, vignette)
 
-            # Subtle dark overlay
             dark = Image.new("RGBA", size, (0, 0, 0, 80))
             bg   = Image.alpha_composite(bg, dark)
 
             draw = ImageDraw.Draw(bg, "RGBA")
 
-            # ── 2. Glass panel ────────────────────────────────────────────────
             panel = Image.new("RGBA", (PANEL_W, PANEL_H), (0, 0, 0, 0))
             pd    = ImageDraw.Draw(panel, "RGBA")
 
-            # Multi-layer outer glow (violet → cyan)
             for gi in range(12, 0, -1):
                 t   = gi / 12
                 gr  = int(ACCENT_A[0] + (ACCENT_B[0] - ACCENT_A[0]) * (1 - t))
@@ -389,21 +364,18 @@ class Thumbnail:
                     outline=(gr, gg, gb, ga)
                 )
             
-            # Panel background (frosted glass)
             pd.rounded_rectangle(
                 (0, 0, PANEL_W, PANEL_H),
                 radius=44,
                 fill=(10, 5, 30, 180)
             )
             
-            # Glass highlight on top edge
             pd.rounded_rectangle(
                 (2, 2, PANEL_W - 2, PANEL_H // 3),
                 radius=42,
                 fill=(255, 255, 255, 12)
             )
 
-            # Panel border
             pd.rounded_rectangle(
                 (0, 0, PANEL_W, PANEL_H),
                 radius=44,
@@ -411,15 +383,11 @@ class Thumbnail:
                 width=1
             )
 
-            # Paste panel onto background
             bg.paste(panel, (PANEL_X, PANEL_Y), panel)
 
-            # ── 3. Thumbnail ──────────────────────────────────────────────────
-            # Load the original thumbnail (already have it from temp)
             with Image.open(temp) as thumb_img:
                 thumb = thumb_img.resize((THUMB_W, THUMB_H)).convert("RGBA")
             
-            # Add subtle shadow under thumbnail
             shadow = Image.new("RGBA", (THUMB_W + 20, THUMB_H + 20), (0, 0, 0, 0))
             shadow_draw = ImageDraw.Draw(shadow)
             shadow_draw.rounded_rectangle(
@@ -430,40 +398,32 @@ class Thumbnail:
             shadow = shadow.filter(ImageFilter.GaussianBlur(8))
             bg.paste(shadow, (THUMB_X - 10, THUMB_Y - 10), shadow)
             
-            # Paste thumbnail with rounded corners
             mask = Image.new("L", (THUMB_W, THUMB_H), 0)
             mask_draw = ImageDraw.Draw(mask)
             mask_draw.rounded_rectangle((0, 0, THUMB_W, THUMB_H), radius=12, fill=255)
             
-            # Apply rounded corners
             thumb_rgba = thumb.copy()
             thumb_rgba.putalpha(mask)
             bg.paste(thumb_rgba, (THUMB_X, THUMB_Y), thumb_rgba)
 
-            # ── 4. Text ────────────────────────────────────────────────────────
-            # Title
             title = trim_to_width(song.title, self.title_font, MAX_TITLE_WIDTH)
             title_layer, _ = render_text_layer(title, self.title_font_path, self.title_font.size)
             gradient_title = gradient_tint_layer(title_layer, WHITE, DIM_WHITE)
             bg = paste_text(bg, gradient_title, TITLE_X, TITLE_Y)
 
-            # Metadata
             meta_text = f"{song.artist} • {song.album}"
             meta = trim_to_width(meta_text, self.regular_font, MAX_TITLE_WIDTH - 100)
             meta_layer, _ = render_text_layer(meta, self.regular_font_path, self.regular_font.size)
             tinted_meta = tint_layer(meta_layer, MID_GREY)
             bg = paste_text(bg, tinted_meta, TITLE_X, META_Y)
 
-            # ── 5. Progress Bar ───────────────────────────────────────────────
-            # Total bar (grey background)
             draw.rounded_rectangle(
                 (BAR_X, BAR_Y - BAR_H, BAR_X + BAR_TOTAL_LEN, BAR_Y + BAR_H),
                 radius=BAR_H,
                 fill=(*DARK_GREY, 180)
             )
             
-            # Progress (gradient accent)
-            progress_len = int(BAR_TOTAL_LEN * (song.duration_ms / 1000 / 300))  # Assuming 5 min max
+            progress_len = int(BAR_TOTAL_LEN * (song.duration_ms / 1000 / 300))
             progress_len = min(progress_len, BAR_TOTAL_LEN)
             
             gradient_line(
@@ -472,7 +432,6 @@ class Thumbnail:
                 BAR_H * 2, ACCENT_A, ACCENT_B
             )
             
-            # Glow on progress bar
             glow = Image.new("RGBA", (BAR_TOTAL_LEN, BAR_H * 4), (0, 0, 0, 0))
             glow_draw = ImageDraw.Draw(glow)
             glow_draw.rounded_rectangle(
@@ -483,13 +442,10 @@ class Thumbnail:
             glow = glow.filter(ImageFilter.GaussianBlur(6))
             bg.paste(glow, (BAR_X, BAR_Y - BAR_H * 2), glow)
 
-            # ── 6. Playback Icons ─────────────────────────────────────────────
-            # Play/Pause icons strip
             icons_y = ICONS_Y
             icon_spacing = 60
             icon_x = ICONS_X
             
-            # Play icon (triangle)
             play_points = [
                 (icon_x + 10, icons_y + 5),
                 (icon_x + 10, icons_y + ICONS_H - 5),
@@ -497,30 +453,43 @@ class Thumbnail:
             ]
             draw.polygon(play_points, fill=(*WHITE, 200))
             
-            # Heart icon - Fixed version
             heart_x = icon_x + ICONS_H + icon_spacing
             heart_center = (heart_x + ICONS_H // 2, icons_y + ICONS_H // 2)
             heart_size = 14
             
-            # Draw heart using ellipses (cleaner approach)
-            # Left half of heart
             draw.ellipse(
                 (heart_center[0] - heart_size, heart_center[1] - heart_size // 2,
                  heart_center[0], heart_center[1] + heart_size // 2),
                 fill=(*WHITE, 180)
             )
-            # Right half of heart
             draw.ellipse(
                 (heart_center[0], heart_center[1] - heart_size // 2,
                  heart_center[0] + heart_size, heart_center[1] + heart_size // 2),
                 fill=(*WHITE, 180)
             )
-            # Triangle bottom of heart
             draw.polygon([
                 (heart_center[0] - heart_size // 2, heart_center[1]),
                 (heart_center[0], heart_center[1] + heart_size),
                 (heart_center[0] + heart_size // 2, heart_center[1])
             ], fill=(*WHITE, 180))
 
-            # ── 7. Watermark Badge ────────────────────────────────────────────
-       
+            brand_name = _decode_f()
+            bg = draw_watermark_badge(bg, brand_name, self.badge_font, self.badge_font_path)
+
+            bg.save(output, format="PNG", optimize=True)
+            
+            if os.path.exists(temp):
+                os.remove(temp)
+
+            return output
+
+        # ⚠️ FIX: Yeh `except` block me `return` ab `try` ke andar hi hai! 
+        # Error ab khatam!
+        except Exception as e:
+            print(f"Error generating thumbnail: {e}")
+            if os.path.exists(temp):
+                try:
+                    os.remove(temp)
+                except:
+                    pass
+            return config.DEFAULT_THUMB
