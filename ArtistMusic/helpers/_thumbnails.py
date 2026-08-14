@@ -73,19 +73,8 @@ DIM_WHITE  = (210, 210, 230)
 MID_GREY   = (160, 160, 185)
 DARK_GREY  = ( 45,  45,  60)
 
-# Changed: Encodes to "ArtistBots" (keeping it to match your __init__.py)
-_f = "QXJ0aXN0Qm90cw=="
-
 # Supersampling factor used for crisp, anti-aliased text rendering.
-# Text is rendered at SS× the target size on its own layer, then
-# downsampled with LANCZOS ─ this removes the jagged/muddy edges you
-# get from drawing TrueType glyphs directly at small sizes.
 SS = 3
-
-
-def _decode_f() -> str:
-    decoded = base64.b64decode(_f).decode("utf-8")
-    return decoded
 
 
 def trim_to_width(text: str, font, max_w: int) -> str:
@@ -128,18 +117,7 @@ def gradient_line(draw, x0, y0, x1, y1, thickness,
 def render_text_layer(text, font_path, font_size, ss=SS):
     """
     Renders `text` on its own tightly-cropped RGBA layer at `ss×`
-    resolution, then downsampled with LANCZOS for clean anti-aliasing ─
-    this is what actually fixes rough/jagged-looking TrueType glyphs at
-    small sizes, instead of drawing directly at 1×.
-
-    Returns (layer, offset). `layer` is straight white-on-transparent
-    (tint it afterwards); `offset` is (x, y) kept for callers that need
-    the glyph side-bearing, though most callers can ignore it.
-
-    `font_path` should be a path to a .ttf/.otf file. If it's None
-    (e.g. the bundled fallback font couldn't be found), we fall back
-    to drawing at 1× with PIL's default font ─ no supersampling, but
-    it still works.
+    resolution, then downsampled with LANCZOS for clean anti-aliasing.
     """
     if font_path:
         big_font = ImageFont.truetype(font_path, font_size * ss)
@@ -164,8 +142,7 @@ def render_text_layer(text, font_path, font_size, ss=SS):
 
 
 def tint_layer(layer, color):
-    """Recolors a white-on-transparent text layer to a flat `color`,
-    preserving the original alpha (i.e. the anti-aliased glyph shape)."""
+    """Recolors a white-on-transparent text layer to a flat `color`."""
     r, g, b, a = layer.split()
     solid = Image.new("RGBA", layer.size, (*color, 0))
     solid.putalpha(a)
@@ -173,8 +150,7 @@ def tint_layer(layer, color):
 
 
 def gradient_tint_layer(layer, color_a, color_b):
-    """Recolors a white-on-transparent text layer with a smooth
-    horizontal gradient between two colors, preserving alpha."""
+    """Recolors a white-on-transparent text layer with a horizontal gradient."""
     w, h = layer.size
     grad = Image.new("RGBA", (w, h))
     gd = ImageDraw.Draw(grad)
@@ -190,9 +166,7 @@ def gradient_tint_layer(layer, color_a, color_b):
 
 
 def glow_from_layer(layer, color, blur=8, alpha=160):
-    """Builds a soft radial-looking glow behind a text layer by
-    blurring its alpha mask ─ replaces the old directional smear
-    technique that just offset the text a few pixels."""
+    """Builds a soft radial-looking glow behind a text layer."""
     r, g, b, a = layer.split()
     tinted = Image.new("RGBA", layer.size, (*color, 0))
     tinted.putalpha(a)
@@ -208,62 +182,6 @@ def paste_text(base_img, layer, x, y):
     canvas = Image.new("RGBA", base_img.size, (0, 0, 0, 0))
     canvas.paste(layer, (int(x), int(y)), layer)
     return Image.alpha_composite(base_img, canvas)
-
-
-def draw_watermark_badge(img: Image.Image, text: str, font, font_path,
-                         top: int = 22, right: int = 28):
-    """
-    Draws a clean glowing pill badge with crisp gradient text in the
-    top-right corner of `img`. Returns the modified image.
-    """
-    text = f"✦ {text} ✦"
-
-    text_layer, _ = render_text_layer(text, font_path, font.size)
-    gradient_text = gradient_tint_layer(text_layer, ACCENT_C, ACCENT_B)
-
-    tw, th = text_layer.size
-    pad_x, pad_y = 24, 12
-
-    bw = tw + pad_x * 2
-    bh = th + pad_y * 2
-
-    x1 = img.width - right
-    x0 = x1 - bw
-    y0 = top
-    y1 = y0 + bh
-    r  = bh // 2
-
-    result = img
-
-    glow_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    draw_glow_rect(ImageDraw.Draw(glow_layer, "RGBA"), (x0, y0, x1, y1),
-                   radius=r, color=ACCENT_A, spread=10, max_alpha=60)
-    result = Image.alpha_composite(result, glow_layer)
-
-    pill_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(pill_layer, "RGBA").rounded_rectangle(
-        (x0, y0, x1, y1), radius=r, fill=(24, 10, 48, 225))
-    result = Image.alpha_composite(result, pill_layer)
-
-    hl_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(hl_layer, "RGBA").rounded_rectangle(
-        (x0 + 2, y0 + 2, x1 - 2, y0 + bh // 2),
-        radius=max(r - 2, 0),
-        fill=(255, 255, 255, 18)
-    )
-    result = Image.alpha_composite(result, hl_layer)
-
-    border_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(border_layer, "RGBA").rounded_rectangle(
-        (x0, y0, x1, y1), radius=r, outline=(*ACCENT_C, 210), width=2)
-    result = Image.alpha_composite(result, border_layer)
-
-    tx = x0 + pad_x
-    ty = y0 + (bh - th) // 2
-    result = paste_text(result, _shadow(text_layer), tx + 1, ty + 2)
-    result = paste_text(result, gradient_text, tx, ty)
-
-    return result
 
 
 def _shadow(layer, alpha=140):
@@ -318,10 +236,10 @@ class Thumbnail:
             return config.DEFAULT_THUMB
 
     def _generate_sync(self, temp, output, song, size=(1280, 720)):
-        # ⚠️ FIX: Yeh poori function `try: ... except:` ke andar hai! Isliye error nahi aayega ab.
         try:
             cW, cH = size
 
+            # ── 1. Background ──────────────────────────────────────────────────
             with Image.open(temp) as tmp:
                 base = tmp.resize(size).convert("RGBA")
 
@@ -349,6 +267,7 @@ class Thumbnail:
 
             draw = ImageDraw.Draw(bg, "RGBA")
 
+            # ── 2. Glass panel ────────────────────────────────────────────────
             panel = Image.new("RGBA", (PANEL_W, PANEL_H), (0, 0, 0, 0))
             pd    = ImageDraw.Draw(panel, "RGBA")
 
@@ -385,6 +304,7 @@ class Thumbnail:
 
             bg.paste(panel, (PANEL_X, PANEL_Y), panel)
 
+            # ── 3. Thumbnail ──────────────────────────────────────────────────
             with Image.open(temp) as thumb_img:
                 thumb = thumb_img.resize((THUMB_W, THUMB_H)).convert("RGBA")
             
@@ -406,6 +326,7 @@ class Thumbnail:
             thumb_rgba.putalpha(mask)
             bg.paste(thumb_rgba, (THUMB_X, THUMB_Y), thumb_rgba)
 
+            # ── 4. Text ────────────────────────────────────────────────────────
             title = trim_to_width(song.title, self.title_font, MAX_TITLE_WIDTH)
             title_layer, _ = render_text_layer(title, self.title_font_path, self.title_font.size)
             gradient_title = gradient_tint_layer(title_layer, WHITE, DIM_WHITE)
@@ -417,6 +338,7 @@ class Thumbnail:
             tinted_meta = tint_layer(meta_layer, MID_GREY)
             bg = paste_text(bg, tinted_meta, TITLE_X, META_Y)
 
+            # ── 5. Progress Bar ───────────────────────────────────────────────
             draw.rounded_rectangle(
                 (BAR_X, BAR_Y - BAR_H, BAR_X + BAR_TOTAL_LEN, BAR_Y + BAR_H),
                 radius=BAR_H,
@@ -442,6 +364,7 @@ class Thumbnail:
             glow = glow.filter(ImageFilter.GaussianBlur(6))
             bg.paste(glow, (BAR_X, BAR_Y - BAR_H * 2), glow)
 
+            # ── 6. Playback Icons ─────────────────────────────────────────────
             icons_y = ICONS_Y
             icon_spacing = 60
             icon_x = ICONS_X
@@ -473,9 +396,7 @@ class Thumbnail:
                 (heart_center[0] + heart_size // 2, heart_center[1])
             ], fill=(*WHITE, 180))
 
-            brand_name = _decode_f()
-            bg = draw_watermark_badge(bg, brand_name, self.badge_font, self.badge_font_path)
-
+            # ── 7. Save and cleanup ──────────────────────────────────────────
             bg.save(output, format="PNG", optimize=True)
             
             if os.path.exists(temp):
@@ -483,8 +404,6 @@ class Thumbnail:
 
             return output
 
-        # ⚠️ FIX: Yeh `except` block me `return` ab `try` ke andar hi hai! 
-        # Error ab khatam!
         except Exception as e:
             print(f"Error generating thumbnail: {e}")
             if os.path.exists(temp):
