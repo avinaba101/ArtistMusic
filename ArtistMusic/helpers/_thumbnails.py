@@ -497,24 +497,30 @@ class Thumbnail:
             ]
             draw.polygon(play_points, fill=(*WHITE, 200))
             
-            # Heart icon
+            # Heart icon - Fixed version
             heart_x = icon_x + ICONS_H + icon_spacing
             heart_center = (heart_x + ICONS_H // 2, icons_y + ICONS_H // 2)
             heart_size = 14
-            # Simple heart shape
-            heart_points = [
-                (heart_center[0] - heart_size, heart_center[1] - heart_size // 2),
-                (heart_center[0], heart_center[1] - heart_size),
-                (heart_center[0] + heart_size, heart_center[1] - heart_size // 2),
-                (heart_center[0] + heart_size, heart_center[1] + heart_size // 2),
+            
+            # Draw heart using ellipses (cleaner approach)
+            # Left half of heart
+            draw.ellipse(
+                (heart_center[0] - heart_size, heart_center[1] - heart_size // 2,
+                 heart_center[0], heart_center[1] + heart_size // 2),
+                fill=(*WHITE, 180)
+            )
+            # Right half of heart
+            draw.ellipse(
+                (heart_center[0], heart_center[1] - heart_size // 2,
+                 heart_center[0] + heart_size, heart_center[1] + heart_size // 2),
+                fill=(*WHITE, 180)
+            )
+            # Triangle bottom of heart
+            draw.polygon([
+                (heart_center[0] - heart_size // 2, heart_center[1]),
                 (heart_center[0], heart_center[1] + heart_size),
-                (heart_center[0] - heart_size, heart_center[1] + heart_size // 2),
-            ]
-            # Draw filled heart
-            for i in range(-heart_size, heart_size):
-                for j in range(-heart_size, heart_size):
-                    if (i * i + j * j) < heart_size * heart_size:
-                        x = heart_center[0] + i
-                        y = heart_center[1] + j
-                        if (x - heart_center[0]) ** 2 + (y - heart_center[1]) ** 2 < heart_size ** 2:
-                            draw.point((x, y), fill=(*WHITE
+                (heart_center[0] + heart_size // 2, heart_center[1])
+            ], fill=(*WHITE, 180))
+
+            # ── 7. Watermark Badge ────────────────────────────────────────────
+       
