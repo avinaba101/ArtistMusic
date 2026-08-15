@@ -391,10 +391,12 @@ class YouTube:
             }
 
             if video:
-                # 🟢 FIX: Video quality ko 480p par lock kar diya (smooth stream ke liye)
+                height_filter = ""
+                if self._max_video_height and self._max_video_height > 0:
+                    height_filter = f"[height<={self._max_video_height}]"
                 format_chain = (
-                    "bestvideo[ext=mp4][height<=480]+bestaudio[ext=m4a]/"
-                    "bestvideo[height<=480]+bestaudio/"
+                    f"bestvideo[ext=mp4]{height_filter}+bestaudio[ext=m4a]/"
+                    f"bestvideo{height_filter}+bestaudio/"
                     "bestvideo+bestaudio/best"
                 )
                 ydl_opts = {
@@ -486,5 +488,4 @@ class YouTube:
                 for entity in message.caption_entities:
                     if entity.type == enums.MessageEntityType.TEXT_LINK:
                         link = entity.url
-                        
-        return link
+                  
